@@ -11,6 +11,7 @@ env:
   BUILD_TYPE: Release
   CCACHE_VERSION: 4.4
   QT_MIRRORS: download.qt.io;mirrors.ocf.berkeley.edu/qt;ftp.fau.de/qtproject;mirror.bit.edu.cn/qtproject
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
 
 jobs:
   build:
@@ -560,7 +561,7 @@ jobs:
         name: qt-creator-${{ matrix.config.artifact }}-${{ github.run_id }}.dmg
 
   release:
-    if: contains(github.ref, 'tags/v')
+    if: contains(github.ref, 'tags/cjj')
     runs-on: ubuntu-latest
     needs: build
 
@@ -586,7 +587,6 @@ jobs:
         name: upload_url
 
   publish:
-    if: contains(github.ref, 'tags/v')
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
     strategy:
