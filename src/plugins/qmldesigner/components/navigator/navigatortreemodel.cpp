@@ -316,7 +316,12 @@ QList<ModelNode> filteredList(const NodeListProperty &property, bool filter, boo
 
     if (filter) {
         list.append(Utils::filtered(property.toModelNodeList(), [] (const ModelNode &arg) {
-            return QmlItemNode::isValidQmlItemNode(arg) || NodeHints::fromModelNode(arg).visibleInNavigator();
+            const char auxProp[] = "showInNavigator@Internal";
+            if (arg.hasAuxiliaryData(auxProp))
+                return arg.auxiliaryData(auxProp).toBool();
+            const bool value = QmlItemNode::isValidQmlItemNode(arg) || NodeHints::fromModelNode(arg).visibleInNavigator();
+            arg.setAuxiliaryData(auxProp, value);
+            return value;
         }));
     } else {
         list = property.toModelNodeList();
@@ -546,20 +551,24 @@ bool NavigatorTreeModel::dropMimeData(const QMimeData *mimeData,
                 QList<ModelNode> addedNodes;
                 ModelNode currNode;
 
-                QSet<QString> neededImports;
-                for (const QString &assetPath : assetsPaths) {
-                    QString assetType = ItemLibraryWidget::getAssetTypeAndData(assetPath).first;
-                    if (assetType == "application/vnd.bauhaus.libraryresource.shader")
-                        neededImports.insert("QtQuick3D");
-                    else if (assetType == "application/vnd.bauhaus.libraryresource.sound")
-                        neededImports.insert("QtMultimedia");
+                // Adding required imports is skipped if we are editing in-file subcomponent
+                DesignDocument *document = QmlDesignerPlugin::instance()->currentDesignDocument();
+                if (document && !document->inFileComponentModelActive()) {
+                    QSet<QString> neededImports;
+                    for (const QString &assetPath : assetsPaths) {
+                        QString assetType = ItemLibraryWidget::getAssetTypeAndData(assetPath).first;
+                        if (assetType == "application/vnd.bauhaus.libraryresource.shader")
+                            neededImports.insert("QtQuick3D");
+                        else if (assetType == "application/vnd.bauhaus.libraryresource.sound")
+                            neededImports.insert("QtMultimedia");
 
-                    if (neededImports.size() == 2)
-                        break;
-                };
+                        if (neededImports.size() == 2)
+                            break;
+                    };
 
-                for (const QString &import : std::as_const(neededImports))
-                    addImport(import);
+                    for (const QString &import : std::as_const(neededImports))
+                        addImport(import);
+                }
 
                 m_view->executeInTransaction("NavigatorTreeModel::dropMimeData", [&] {
                     for (const QString &assetPath : assetsPaths) {
@@ -879,7 +888,6 @@ void NavigatorTreeModel::addImport(const QString &importName)
             if (possImport.url() == import.url()) {
                 import = possImport;
                 m_view->model()->changeImports({import}, {});
-                QmlDesignerPlugin::instance()->currentDesignDocument()->updateSubcomponentManagerImport(import);
                 break;
             }
         }

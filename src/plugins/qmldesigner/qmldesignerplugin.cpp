@@ -33,7 +33,6 @@
 #include "generateresource.h"
 #include "generatecmakelists.h"
 #include "nodeinstanceview.h"
-#include "gestures.h"
 
 #include <metainfo.h>
 #include <connectionview.h>
@@ -232,8 +231,6 @@ bool QmlDesignerPlugin::initialize(const QStringList & /*arguments*/, QString *e
     if (QFontDatabase::addApplicationFont(fontPath) < 0)
         qCWarning(qmldesignerLog) << "Could not add font " << fontPath << "to font database";
 
-    TwoFingerSwipe::registerRecognizer();
-
     return true;
 }
 
@@ -386,7 +383,8 @@ void QmlDesignerPlugin::showDesigner()
         dialog.exec();
         if (dialog.uiFileOpened()) {
             Core::ModeManager::activateMode(Core::Constants::MODE_EDIT);
-            Core::EditorManager::openEditorAt(dialog.uiQmlFile(), 0, 0);
+            Core::EditorManager::openEditorAt(
+                {Utils::FilePath::fromString(dialog.uiQmlFile()), 0, 0});
             return;
         }
     }

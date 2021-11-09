@@ -88,7 +88,6 @@
 #include <QMessageBox>
 #include <QMetaObject>
 #include <QMutex>
-#include <QProcess>
 #include <QRegularExpression>
 #include <QSharedPointer>
 #include <QTextCodec>
@@ -2689,10 +2688,11 @@ public:
         ClearCasePluginPrivate::instance()->setFakeCleartool(true);
         VcsManager::clearVersionControlCache();
 
-        FileSaver srcSaver(Utils::FilePath::fromString(fileName));
+        const auto filePath = Utils::FilePath::fromString(fileName);
+        FileSaver srcSaver(filePath);
         srcSaver.write(QByteArray());
         srcSaver.finalize();
-        m_editor = EditorManager::openEditor(fileName);
+        m_editor = EditorManager::openEditor(filePath);
 
         QCoreApplication::processEvents(); // process any pending events
     }

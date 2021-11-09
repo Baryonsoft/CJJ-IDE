@@ -27,6 +27,7 @@
 
 #include "algorithm.h"
 #include "camelcasecursor.h"
+#include "hostosinfo.h"
 #include "qtcassert.h"
 
 #include <QKeyEvent>
@@ -125,7 +126,9 @@ bool MultiTextCursor::hasSelection() const
 QString MultiTextCursor::selectedText() const
 {
     QString text;
-    for (const QTextCursor &cursor : m_cursors) {
+    QList<QTextCursor> cursors = m_cursors;
+    Utils::sort(cursors);
+    for (const QTextCursor &cursor : cursors) {
         const QString &cursorText = cursor.selectedText();
         if (cursorText.isEmpty())
             continue;
@@ -169,7 +172,9 @@ void MultiTextCursor::insertText(const QString &text, bool selectNewText)
             lines.pop_back();
         int index = 0;
         if (lines.count() == m_cursors.count()) {
-            for (QTextCursor &cursor : m_cursors)
+            QList<QTextCursor> cursors = m_cursors;
+            Utils::sort(cursors);
+            for (QTextCursor &cursor : cursors)
                 insertAndSelect(cursor, lines.at(index++), selectNewText);
             m_cursors.last().endEditBlock();
             return;
@@ -289,10 +294,13 @@ static QTextLine currentTextLine(const QTextCursor &cursor)
     return layout->lineForTextPosition(relativePos);
 }
 
-bool multiCursorAddEvent(QKeyEvent *e, QKeySequence::StandardKey matchKey)
+bool MultiTextCursor::multiCursorAddEvent(QKeyEvent *e, QKeySequence::StandardKey matchKey)
 {
     uint searchkey = (e->modifiers() | e->key())
-                     & ~(Qt::KeypadModifier | Qt::GroupSwitchModifier | Qt::AltModifier);
+                     & ~(Qt::KeypadModifier
+                         | Qt::GroupSwitchModifier
+                         | Qt::AltModifier
+                         | Qt::ShiftModifier);
 
     const QList<QKeySequence> bindings = QKeySequence::keyBindings(matchKey);
     return bindings.contains(QKeySequence(searchkey));
@@ -302,7 +310,7 @@ bool MultiTextCursor::handleMoveKeyEvent(QKeyEvent *e,
                                          QPlainTextEdit *edit,
                                          bool camelCaseNavigationEnabled)
 {
-    if (e->modifiers() & Qt::AltModifier) {
+    if (e->modifiers() & Qt::AltModifier && !Utils::HostOsInfo::isMacHost()) {
         QTextCursor::MoveOperation op = QTextCursor::NoMove;
         if (multiCursorAddEvent(e, QKeySequence::MoveToNextWord)) {
             op = QTextCursor::WordRight;

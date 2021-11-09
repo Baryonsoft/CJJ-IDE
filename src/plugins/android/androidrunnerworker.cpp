@@ -195,7 +195,9 @@ static FilePath debugServer(bool useLldb, const Target *target)
         const QString abiNeedle = lldbServerArch2(preferredAbi);
 
         // The new, built-in LLDB.
-        QDirIterator it(prebuilt.toString(), QDir::Files|QDir::Executable, QDirIterator::Subdirectories);
+        const QDir::Filters dirFilter = HostOsInfo::isWindowsHost() ? QDir::Files
+                                                                    : QDir::Files|QDir::Executable;
+        QDirIterator it(prebuilt.toString(), dirFilter, QDirIterator::Subdirectories);
         while (it.hasNext()) {
             it.next();
             const QString filePath = it.filePath();
@@ -327,7 +329,7 @@ AndroidRunnerWorker::~AndroidRunnerWorker()
 }
 
 bool AndroidRunnerWorker::runAdb(const QStringList &args, QString *stdOut,
-                                 const QByteArray &writeData)
+                                 QString *stdErr, const QByteArray &writeData)
 {
     QStringList adbArgs = selector() + args;
     SdkToolResult result = AndroidManager::runAdbCommand(adbArgs, writeData);
@@ -335,6 +337,8 @@ bool AndroidRunnerWorker::runAdb(const QStringList &args, QString *stdOut,
         emit remoteErrorOutput(result.stdErr());
     if (stdOut)
         *stdOut = result.stdOut();
+    if (stdErr)
+        *stdErr = result.stdErr();
     return result.success();
 }
 
@@ -651,8 +655,15 @@ void AndroidRunnerWorker::asyncStartHelper()
                                     .toUtf8().toBase64());
     }
 
-    if (!runAdb(args)) {
+    QString stdErr;
+    const bool startResult = runAdb(args, nullptr, &stdErr);
+    if (!startResult) {
         emit remoteProcessFinished(tr("Failed to start the activity."));
+        return;
+    }
+
+    if (!stdErr.isEmpty()) {
+        emit remoteErrorOutput(tr("Activity Manager threw the error: %1").arg(stdErr));
         return;
     }
 }

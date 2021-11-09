@@ -30,7 +30,6 @@
 #include "qtcassert.h"
 
 #include <QCoreApplication>
-#include <QElapsedTimer>
 #include <QLocalSocket>
 #include <QMutexLocker>
 
@@ -141,10 +140,8 @@ QList<CallerHandle::SignalType> CallerHandle::flushFor(CallerHandle::SignalType 
     {
         // 1. If signalType is no signal - flush all
         // 2. Flush all if we have any error
-        // 3. If we are flushing for Finished, flush Started / ReadyRead, too
-        // 4. If we are flushing for ReadyRead, flush Started, too
-        // 5. (?) If we have collected Finished, flush it only when flushing
-        //    for ReadyRead / Finished (not for Started)
+        // 3. If we are flushing for Finished or ReadyRead, flush all, too
+        // 4. If we are flushing for Started, flush Started only
 
         QMutexLocker locker(&m_mutex);
 
@@ -154,6 +151,7 @@ QList<CallerHandle::SignalType> CallerHandle::flushFor(CallerHandle::SignalType 
         });
 
         const bool flushAll = (signalType == CallerHandle::SignalType::NoSignal)
+                           || (signalType == CallerHandle::SignalType::ReadyRead)
                            || (signalType == CallerHandle::SignalType::Finished)
                            || storedSignals.contains(CallerHandle::SignalType::Error);
         if (flushAll) {
@@ -543,14 +541,11 @@ bool CallerHandle::isCalledFromLaunchersThread() const
 bool LauncherHandle::waitForSignal(int msecs, CallerHandle::SignalType newSignal)
 {
     QTC_ASSERT(!isCalledFromLaunchersThread(), return false);
-    QElapsedTimer timer;
-    timer.start();
+    QDeadlineTimer deadline(msecs);
     while (true) {
-        const int remainingMsecs = msecs - timer.elapsed();
-        if (remainingMsecs <= 0)
+        if (deadline.hasExpired())
             break;
-        const bool timedOut = !doWaitForSignal(qMax(remainingMsecs, 0), newSignal);
-        if (timedOut)
+        if (!doWaitForSignal(deadline, newSignal))
             break;
         m_awaitingShouldContinue = true; // TODO: make it recursive?
         const QList<CallerHandle::SignalType> flushedSignals = m_callerHandle->flushFor(newSignal);
@@ -564,14 +559,12 @@ bool LauncherHandle::waitForSignal(int msecs, CallerHandle::SignalType newSignal
             return true;
         if (wasCanceled)
             return true; // or false? is false only in case of timeout?
-        if (timer.hasExpired(msecs))
-            break;
     }
     return false;
 }
 
 // Called from caller's thread exclusively.
-bool LauncherHandle::doWaitForSignal(int msecs, CallerHandle::SignalType newSignal)
+bool LauncherHandle::doWaitForSignal(QDeadlineTimer deadline, CallerHandle::SignalType newSignal)
 {
     QMutexLocker locker(&m_mutex);
     QTC_ASSERT(isCalledFromCallersThread(), return false);
@@ -586,7 +579,7 @@ bool LauncherHandle::doWaitForSignal(int msecs, CallerHandle::SignalType newSign
         return true;
 
     m_waitingFor = newSignal;
-    const bool ret = m_waitCondition.wait(&m_mutex, msecs);
+    const bool ret = m_waitCondition.wait(&m_mutex, deadline);
     m_waitingFor = CallerHandle::SignalType::NoSignal;
     return ret;
 }

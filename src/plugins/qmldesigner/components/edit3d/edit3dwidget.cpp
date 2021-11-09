@@ -33,6 +33,8 @@
 #include "qmldesignerplugin.h"
 #include "qmlvisualnode.h"
 #include "viewmanager.h"
+#include <seekerslider.h>
+#include <nodeinstanceview.h>
 
 #include <coreplugin/actionmanager/actionmanager.h>
 #include <coreplugin/actionmanager/command.h>
@@ -64,8 +66,11 @@ Edit3DWidget::Edit3DWidget(Edit3DView *view) :
     fillLayout->setSpacing(0);
     setLayout(fillLayout);
 
+    SeekerSlider *seeker = new SeekerSlider(this);
+    seeker->setEnabled(false);
+
     // Initialize toolbar
-    m_toolBox = new ToolBox(this);
+    m_toolBox = new ToolBox(seeker, this);
     fillLayout->addWidget(m_toolBox.data());
 
     // Iterate through view actions. A null action indicates a separator and a second null action
@@ -100,7 +105,10 @@ Edit3DWidget::Edit3DWidget(Edit3DView *view) :
                     auto separator = new QAction(this);
                     separator->setSeparator(true);
                     addAction(separator);
-                    m_toolBox->addLeftSideAction(separator);
+                    if (left)
+                        m_toolBox->addLeftSideAction(separator);
+                    else
+                        m_toolBox->addRightSideAction(separator);
                     previousWasSeparator = true;
                 }
             }
@@ -108,6 +116,14 @@ Edit3DWidget::Edit3DWidget(Edit3DView *view) :
     };
     addActionsToToolBox(view->leftActions(), true);
     addActionsToToolBox(view->rightActions(), false);
+
+    view->setSeeker(seeker);
+    seeker->setToolTip(QLatin1String("Seek particle system time when paused."));
+
+    QObject::connect(seeker, &SeekerSlider::positionChanged, [this, seeker](){
+        QmlDesignerPlugin::instance()->viewManager().nodeInstanceView()
+                ->view3DAction(View3DSeekActionCommand(seeker->position()));
+    });
 
     // Onboarding label contains instructions for new users how to get 3D content into the project
     m_onboardingLabel = new QLabel(this);
@@ -177,18 +193,22 @@ void Edit3DWidget::dropEvent(QDropEvent *dropEvent)
                                                      ->viewManager().designerActionManager();
     QHash<QString, QStringList> addedAssets = actionManager.handleExternalAssetsDrop(dropEvent->mimeData());
 
-    // add 3D assets to 3d editor (QtQuick3D import will be added if missing)
-    ItemLibraryInfo *itemLibInfo = m_view->model()->metaInfo().itemLibraryInfo();
+    view()->executeInTransaction("Edit3DWidget::dropEvent", [&] {
+        // add 3D assets to 3d editor (QtQuick3D import will be added if missing)
+        ItemLibraryInfo *itemLibInfo = m_view->model()->metaInfo().itemLibraryInfo();
 
-    const QStringList added3DAssets = addedAssets.value(ComponentCoreConstants::add3DAssetsDisplayString);
-    for (const QString &assetPath : added3DAssets) {
-        QString fileName = QFileInfo(assetPath).baseName();
-        fileName = fileName.at(0).toUpper() + fileName.mid(1); // capitalize first letter
-        QString type = QString("Quick3DAssets.%1.%1").arg(fileName);
-        QList<ItemLibraryEntry> entriesForType = itemLibInfo->entriesForType(type.toLatin1());
-        if (!entriesForType.isEmpty()) // should always be true, but just in case
-            QmlVisualNode::createQml3DNode(view(), entriesForType.at(0), m_canvas->activeScene()).modelNode();
-    }
+        const QStringList added3DAssets = addedAssets.value(ComponentCoreConstants::add3DAssetsDisplayString);
+        for (const QString &assetPath : added3DAssets) {
+            QString fileName = QFileInfo(assetPath).baseName();
+            fileName = fileName.at(0).toUpper() + fileName.mid(1); // capitalize first letter
+            QString type = QString("Quick3DAssets.%1.%1").arg(fileName);
+            QList<ItemLibraryEntry> entriesForType = itemLibInfo->entriesForType(type.toLatin1());
+            if (!entriesForType.isEmpty()) { // should always be true, but just in case
+                QmlVisualNode::createQml3DNode(view(), entriesForType.at(0),
+                                               m_canvas->activeScene(), {}, false).modelNode();
+            }
+        }
+    });
 }
 
 } // namespace QmlDesigner

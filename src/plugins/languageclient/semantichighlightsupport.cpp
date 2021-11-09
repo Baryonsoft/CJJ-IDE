@@ -183,6 +183,17 @@ SemanticTokenSupport::SemanticTokenSupport(Client *client)
                      &TextEditorSettings::fontSettingsChanged,
                      client,
                      [this]() { updateFormatHash(); });
+    QObject::connect(Core::EditorManager::instance(),
+                     &Core::EditorManager::currentEditorChanged,
+                     this,
+                     &SemanticTokenSupport::onCurrentEditorChanged);
+}
+
+void SemanticTokenSupport::refresh()
+{
+    m_tokens.clear();
+    for (Core::IEditor *editor : Core::EditorManager::visibleEditors())
+        onCurrentEditorChanged(editor);
 }
 
 void SemanticTokenSupport::reloadSemanticTokens(TextDocument *textDocument)
@@ -224,8 +235,11 @@ void SemanticTokenSupport::updateSemanticTokens(TextDocument *textDocument)
     const SemanticRequestTypes supportedRequests = supportedSemanticRequests(textDocument);
     if (supportedRequests.testFlag(SemanticRequestType::FullDelta)) {
         const Utils::FilePath filePath = textDocument->filePath();
-        const QString &previousResultId = m_tokens.value(filePath).tokens.resultId().value_or(QString());
+        const VersionedTokens versionedToken = m_tokens.value(filePath);
+        const QString &previousResultId = versionedToken.tokens.resultId().value_or(QString());
         if (!previousResultId.isEmpty()) {
+            if (m_client->documentVersion(filePath) == versionedToken.version)
+                return;
             SemanticTokensDeltaParams params;
             params.setTextDocument(TextDocumentIdentifier(DocumentUri::fromFilePath(filePath)));
             params.setPreviousResultId(previousResultId);
@@ -325,6 +339,12 @@ void SemanticTokenSupport::updateFormatHash()
     rehighlight();
 }
 
+void SemanticTokenSupport::onCurrentEditorChanged(Core::IEditor *editor)
+{
+    if (auto textEditor = qobject_cast<BaseTextEditor *>(editor))
+        updateSemanticTokens(textEditor->textDocument());
+}
+
 void SemanticTokenSupport::setTokenTypesMap(const QMap<QString, int> &tokenTypesMap)
 {
     m_tokenTypesMap = tokenTypesMap;
@@ -412,12 +432,20 @@ void SemanticTokenSupport::handleSemanticTokensDelta(
 
         auto it = data.begin();
         const auto end = data.end();
+        qCDebug(LOGLSPHIGHLIGHT) << "Edit Tokens for " << filePath;
+        qCDebug(LOGLSPHIGHLIGHT) << "Data before edit " << data;
         for (const SemanticTokensEdit &edit : qAsConst(edits)) {
             if (edit.start() > data.size()) // prevent edits after the previously reported data
                 return;
             for (const auto start = data.begin() + edit.start(); it < start; ++it)
                 newData.append(*it);
-            newData.append(edit.data().value_or(QList<int>()));
+            const Utils::optional<QList<int>> editData = edit.data();
+            if (editData.has_value()) {
+                newData.append(editData.value());
+                qCDebug(LOGLSPHIGHLIGHT) << edit.start() << edit.deleteCount() << editData.value();
+            } else {
+                qCDebug(LOGLSPHIGHLIGHT) << edit.start() << edit.deleteCount();
+            }
             int deleteCount = edit.deleteCount();
             if (deleteCount > std::distance(it, end)) {
                 qCDebug(LOGLSPHIGHLIGHT)
@@ -434,6 +462,7 @@ void SemanticTokenSupport::handleSemanticTokensDelta(
         for (; it != end; ++it)
             newData.append(*it);
 
+        qCDebug(LOGLSPHIGHLIGHT) << "New Data " << newData;
         tokens.setData(newData);
         tokens.setResultId(tokensDelta->resultId());
     } else {
@@ -478,6 +507,14 @@ void SemanticTokenSupport::highlight(const Utils::FilePath &filePath)
             expandedToken.length = token.length;
             expandedTokens << expandedToken;
         };
+        if (LOGLSPHIGHLIGHT().isDebugEnabled()) {
+            qCDebug(LOGLSPHIGHLIGHT) << "Expanded Tokens for " << filePath;
+            for (const ExpandedSemanticToken &token : qAsConst(expandedTokens)) {
+                qCDebug(LOGLSPHIGHLIGHT)
+                    << token.line << token.column << token.length << token.type << token.modifiers;
+            }
+        }
+
         m_tokensHandler(doc, expandedTokens, versionedTokens.version);
         return;
     }

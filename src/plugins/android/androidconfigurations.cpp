@@ -68,7 +68,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
-#include <QProcess>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
@@ -840,11 +839,23 @@ QStringList AndroidConfig::getAbis(const QString &device)
 bool AndroidConfig::isValidNdk(const QString &ndkLocation) const
 {
     auto ndkPath = Utils::FilePath::fromUserInput(ndkLocation);
-    const FilePath ndkPlatformsDir = ndkPath.pathAppended("platforms");
 
-    return ndkPath.exists() && ndkPath.pathAppended("toolchains").exists()
-           && ndkPlatformsDir.exists() && !ndkPlatformsDir.toString().contains(' ')
-           && !ndkVersion(ndkPath).isNull();
+    if (!ndkPath.exists())
+        return false;
+
+    if (!ndkPath.pathAppended("toolchains").exists())
+        return false;
+
+    const QVersionNumber version = ndkVersion(ndkPath);
+    if (version.isNull())
+        return false;
+
+    const FilePath ndkPlatformsDir = ndkPath.pathAppended("platforms");
+    if (version.majorVersion() <= 22
+            && (!ndkPlatformsDir.exists() || ndkPlatformsDir.toString().contains(' ')))
+        return false; // TODO: Adapt code that assumes the presence of a "platforms" folder
+
+    return true;
 }
 
 QString AndroidConfig::bestNdkPlatformMatch(int target, const BaseQtVersion *qtVersion) const
@@ -1515,8 +1526,9 @@ FilePath AndroidConfig::getJdkPath()
             args << "-c"
                  << "readlink -f $(which java)";
 
-        QProcess findJdkPathProc;
-        findJdkPathProc.start("sh", args);
+        QtcProcess findJdkPathProc;
+        findJdkPathProc.setCommand({"sh", args});
+        findJdkPathProc.start();
         findJdkPathProc.waitForFinished();
         QByteArray jdkPath = findJdkPathProc.readAllStandardOutput().trimmed();
 

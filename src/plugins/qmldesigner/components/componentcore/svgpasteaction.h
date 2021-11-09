@@ -1,9 +1,9 @@
 /****************************************************************************
 **
-** Copyright (C) 2020 The Qt Company Ltd.
+** Copyright (C) 2021 The Qt Company Ltd.
 ** Contact: https://www.qt.io/licensing/
 **
-** This file is part of the Qt Design Tooling
+** This file is part of Qt Creator.
 **
 ** Commercial License Usage
 ** Licensees holding valid commercial Qt licenses may use this file in
@@ -24,49 +24,33 @@
 ****************************************************************************/
 #pragma once
 
-#include <QGesture>
-#include <QGestureRecognizer>
-#include <QLineF>
+#include <qmlitemnode.h>
 
-QT_FORWARD_DECLARE_CLASS(QTouchEvent)
+#include <QDomDocument>
 
 namespace QmlDesigner {
 
-class TwoFingerSwipe : public QGesture
+struct CSSProperty
 {
-    Q_OBJECT
-
-public:
-    TwoFingerSwipe();
-
-    static Qt::GestureType type();
-    static void registerRecognizer();
-
-    QPointF direction() const;
-
-    void reset();
-    QGestureRecognizer::Result begin(QTouchEvent *event);
-    QGestureRecognizer::Result update(QTouchEvent *event);
-    QGestureRecognizer::Result end(QTouchEvent *event);
-
-private:
-    static Qt::GestureType m_type;
-
-    QLineF m_start;
-    QLineF m_current;
-    QLineF m_last;
+    QString directive;
+    QString value;
 };
 
-class TwoFingerSwipeRecognizer : public QGestureRecognizer
+using CSSRule = std::vector<CSSProperty>;
+using CSSRules = QHash<QString, CSSRule>;
+using PropertyMap = QHash<QByteArray, QVariant>;
+
+class SVGPasteAction
 {
 public:
-    TwoFingerSwipeRecognizer();
+    SVGPasteAction();
 
-    QGesture *create(QObject *target) override;
+    bool containsSVG(const QString &str);
 
-    QGestureRecognizer::Result recognize(QGesture *gesture, QObject *watched, QEvent *event) override;
+    QmlObjectNode createQmlObjectNode(QmlDesigner::ModelNode &targetNode);
 
-    void reset(QGesture *gesture) override;
+private:
+    QDomDocument m_domDocument;
 };
 
 } // namespace QmlDesigner

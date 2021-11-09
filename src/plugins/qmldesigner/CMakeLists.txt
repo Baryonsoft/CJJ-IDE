@@ -4,10 +4,10 @@ if (APPLE)
 endif()
 
 add_qtc_plugin(QmlDesigner
-  CONDITION TARGET Qt5::QuickWidgets
+  CONDITION TARGET Qt5::QuickWidgets AND TARGET Qt5::Svg
   DEPENDS
     QmlJS LanguageUtils QmlEditorWidgets AdvancedDockingSystem
-    Qt5::QuickWidgets Qt5::CorePrivate Sqlite
+    Qt5::QuickWidgets Qt5::CorePrivate Sqlite Qt5::Xml Qt5::Svg
   DEFINES
     DESIGNER_CORE_LIBRARY
     IDE_LIBRARY_BASENAME=\"${IDE_LIBRARY_BASE_PATH}\"
@@ -27,6 +27,7 @@ add_qtc_plugin(QmlDesigner
     designmodewidget.cpp designmodewidget.h
     documentmanager.cpp documentmanager.h
     documentwarningwidget.cpp documentwarningwidget.h
+    cmakegeneratordialog.h cmakegeneratordialog.cpp
     generateresource.cpp generateresource.h
     generatecmakelists.cpp generatecmakelists.h
     openuiqmlfiledialog.cpp openuiqmlfiledialog.h openuiqmlfiledialog.ui
@@ -134,12 +135,12 @@ extend_qtc_plugin(QmlDesigner
     modelnodeoperations.cpp modelnodeoperations.h
     formatoperation.cpp formatoperation.h
     navigation2d.cpp navigation2d.h
-    gestures.cpp gestures.h
     qmldesignericonprovider.cpp qmldesignericonprovider.h
     selectioncontext.cpp selectioncontext.h
     theme.cpp theme.h
     zoomaction.cpp zoomaction.h
     hdrimage.cpp hdrimage.h
+    svgpasteaction.cpp svgpasteaction.h
 )
 
 extend_qtc_plugin(QmlDesigner
@@ -201,6 +202,7 @@ extend_qtc_plugin(QmlDesigner
     rubberbandselectionmanipulator.cpp rubberbandselectionmanipulator.h
     scaleitem.cpp scaleitem.h
     scalemanipulator.cpp scalemanipulator.h
+    seekerslider.cpp seekerslider.h
     selectionindicator.cpp selectionindicator.h
     selectionrectangle.cpp selectionrectangle.h
     selectiontool.cpp selectiontool.h

@@ -249,6 +249,7 @@ static QmlObjectNode createQmlObjectNodeFromSource(AbstractView *view,
     QScopedPointer<RewriterView> rewriterView(new RewriterView(RewriterView::Amend, nullptr));
     rewriterView->setCheckSemanticErrors(false);
     rewriterView->setTextModifier(&modifier);
+    rewriterView->setAllowComponentRoot(true);
     inputModel->setRewriterView(rewriterView.data());
 
     if (rewriterView->errors().isEmpty() && rewriterView->rootModelNode().isValid()) {
@@ -365,14 +366,15 @@ QmlObjectNode QmlVisualNode::createQmlObjectNode(AbstractView *view,
 
 QmlVisualNode QmlVisualNode::createQml3DNode(AbstractView *view,
                                              const ItemLibraryEntry &itemLibraryEntry,
-                                             qint32 sceneRootId, const QVector3D &position)
+                                             qint32 sceneRootId, const QVector3D &position,
+                                             bool createInTransaction)
 {
     NodeAbstractProperty sceneNodeProperty = sceneRootId != -1 ? findSceneNodeProperty(view, sceneRootId)
                                                                : view->rootModelNode().defaultNodeAbstractProperty();
 
     QTC_ASSERT(sceneNodeProperty.isValid(), return {});
 
-    return createQmlObjectNode(view, itemLibraryEntry, position, sceneNodeProperty).modelNode();
+    return createQmlObjectNode(view, itemLibraryEntry, position, sceneNodeProperty, createInTransaction).modelNode();
 }
 
 NodeListProperty QmlVisualNode::findSceneNodeProperty(AbstractView *view, qint32 sceneRootId)

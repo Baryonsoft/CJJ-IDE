@@ -1384,7 +1384,8 @@ void GitPluginPrivate::updateVersionWarning()
 
 IEditor *GitPluginPrivate::openSubmitEditor(const QString &fileName, const CommitData &cd)
 {
-    IEditor *editor = EditorManager::openEditor(fileName, Constants::GITSUBMITEDITOR_ID);
+    IEditor *editor = EditorManager::openEditor(FilePath::fromString(fileName),
+                                                Constants::GITSUBMITEDITOR_ID);
     auto submitEditor = qobject_cast<GitSubmitEditor*>(editor);
     QTC_ASSERT(submitEditor, return nullptr);
     setSubmitEditor(submitEditor);
@@ -1970,9 +1971,9 @@ void GitPlugin::emitFilesChanged(const QStringList &l)
     emit dd->filesChanged(l);
 }
 
-void GitPlugin::emitRepositoryChanged(const QString &r)
+void GitPlugin::emitRepositoryChanged(const FilePath &r)
 {
-    emit dd->repositoryChanged(FilePath::fromString(r));
+    emit dd->repositoryChanged(r);
 }
 
 void GitPlugin::startRebaseFromCommit(const FilePath &workingDirectory, const QString &commit)

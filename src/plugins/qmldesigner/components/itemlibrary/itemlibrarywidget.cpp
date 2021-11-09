@@ -357,7 +357,6 @@ void ItemLibraryWidget::handleAddImport(int index)
 
     auto document = QmlDesignerPlugin::instance()->currentDesignDocument();
     document->documentModel()->changeImports({import}, {});
-    document->updateSubcomponentManagerImport(import);
 
     m_stackedWidget->setCurrentIndex(0); // switch to the Components view after import is added
     updateSearch();
@@ -371,6 +370,18 @@ bool ItemLibraryWidget::isSearchActive() const
 void ItemLibraryWidget::handleFilesDrop(const QStringList &filesPaths)
 {
     addResources(filesPaths);
+}
+
+QSet<QString> ItemLibraryWidget::supportedDropSuffixes()
+{
+    const QList<AddResourceHandler> handlers = QmlDesignerPlugin::instance()->viewManager()
+                                                   .designerActionManager().addResourceHandler();
+
+    QSet<QString> suffixes;
+    for (const AddResourceHandler &handler : handlers)
+        suffixes.insert(handler.filter);
+
+    return suffixes;
 }
 
 void ItemLibraryWidget::delayedUpdateModel()
@@ -389,6 +400,17 @@ void ItemLibraryWidget::setModel(Model *model)
         return;
 
     setItemLibraryInfo(model->metaInfo().itemLibraryInfo());
+
+    if (DesignDocument *document = QmlDesignerPlugin::instance()->currentDesignDocument()) {
+        const bool subCompEditMode = document->inFileComponentModelActive();
+        if (m_subCompEditMode != subCompEditMode) {
+            m_subCompEditMode = subCompEditMode;
+            // Switch out of module add panel if it's active
+            if (m_subCompEditMode && m_stackedWidget->currentIndex() == 2)
+                m_stackedWidget->setCurrentIndex(0);
+            emit subCompEditModeChanged();
+        }
+    }
 }
 
 void ItemLibraryWidget::handleTabChanged(int index)
@@ -532,6 +554,11 @@ QPair<QString, QByteArray> ItemLibraryWidget::getAssetTypeAndData(const QString 
         }
     }
     return {};
+}
+
+bool ItemLibraryWidget::subCompEditMode() const
+{
+    return m_subCompEditMode;
 }
 
 void ItemLibraryWidget::setFlowMode(bool b)

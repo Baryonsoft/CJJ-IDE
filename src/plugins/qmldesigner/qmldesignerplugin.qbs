@@ -10,7 +10,7 @@ Project {
         Depends {
             name: "Qt";
             submodules: [
-                "core-private", "quickwidgets"
+                "core-private", "quickwidgets", "xml", "svg"
             ]
         }
         Depends { name: "AdvancedDockingSystem" }
@@ -461,8 +461,6 @@ Project {
                 "componentcore/findimplementation.h",
                 "componentcore/formatoperation.cpp",
                 "componentcore/formatoperation.h",
-                "componentcore/gestures.cpp",
-                "componentcore/gestures.h",
                 "componentcore/layoutingridlayout.cpp",
                 "componentcore/layoutingridlayout.h",
                 "componentcore/theme.cpp",
@@ -484,6 +482,8 @@ Project {
                 "componentcore/zoomaction.h",
                 "componentcore/hdrimage.cpp",
                 "componentcore/hdrimage.h",
+                "componentcore/svgpasteaction.cpp",
+                "componentcore/svgpasteaction.h",
                 "texteditor/texteditorstatusbar.cpp",
                 "texteditor/texteditorstatusbar.h",
                 "componentcore/changestyleaction.cpp",
@@ -577,6 +577,8 @@ Project {
                 "formeditor/scaleitem.h",
                 "formeditor/scalemanipulator.cpp",
                 "formeditor/scalemanipulator.h",
+                "formeditor/seekerslider.cpp",
+                "formeditor/seekerslider.h",
                 "formeditor/selectionindicator.cpp",
                 "formeditor/selectionindicator.h",
                 "formeditor/selectionrectangle.cpp",
@@ -1009,6 +1011,8 @@ Project {
             "generateresource.h",
             "generatecmakelists.cpp",
             "generatecmakelists.h",
+            "cmakegeneratordialog.cpp",
+            "cmakegeneratordialog.h",
             "designersettings.cpp",
             "designersettings.h",
             "designmodecontext.cpp",

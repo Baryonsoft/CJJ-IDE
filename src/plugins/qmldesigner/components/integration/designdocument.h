@@ -69,13 +69,14 @@ public:
     void attachRewriterToModel();
     void close();
     void updateSubcomponentManager();
-    void updateSubcomponentManagerImport(const Import &import);
+    void addSubcomponentManagerImport(const Import &import);
 
     bool isUndoAvailable() const;
     bool isRedoAvailable() const;
 
     Model *currentModel() const;
     Model *documentModel() const;
+    bool inFileComponentModelActive() const;
 
     void contextHelp(const Core::IContext::HelpCallback &callback) const;
     QList<DocumentMessage> qmlParseWarnings() const;
@@ -144,6 +145,8 @@ private: // functions
     AbstractView *view() const;
 
     Model *createInFileComponentModel();
+
+    bool pasteSVG();
 
 private: // variables
     QScopedPointer<Model> m_documentModel;
